@@ -22,18 +22,28 @@ serve(async (req) => {
     // Parse the request body
     const { messages, agentConfig } = await req.json();
 
+    if (!messages || !Array.isArray(messages)) {
+      throw new Error("Invalid messages format: messages must be an array");
+    }
+
     // Prepare the system message based on agent configuration
     const systemPrompt = agentConfig?.instructions || 
       "You are a helpful AI assistant that provides accurate and concise information.";
 
-    // Format messages for Gemini
+    // Format messages for Gemini - handle potential malformed messages by validating
     const formattedMessages = [
-      { role: "user", parts: [{ text: `SYSTEM INSTRUCTION: ${systemPrompt}` }] },
-      ...messages.map((msg: any) => ({
-        role: msg.role === "assistant" ? "model" : "user",
-        parts: [{ text: msg.content }]
-      }))
+      { role: "user", parts: [{ text: `SYSTEM INSTRUCTION: ${systemPrompt}` }] }
     ];
+
+    // Add user messages with validation
+    messages.forEach((msg) => {
+      if (msg && typeof msg.role === 'string' && typeof msg.content === 'string') {
+        formattedMessages.push({
+          role: msg.role === "assistant" ? "model" : "user",
+          parts: [{ text: msg.content }]
+        });
+      }
+    });
 
     console.log("Sending request to Gemini with messages:", JSON.stringify(formattedMessages));
 

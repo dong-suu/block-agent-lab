@@ -151,21 +151,27 @@ export function useChatWithGemini(agentId: string) {
       // Get agent configuration
       const agentConfig = await getAgentConfig(agentId);
 
-      // Send request to Gemini
+      // Send request to Gemini - ensure we're sending all previous messages for context
       const allMessages = [...messages, userMessage];
-      const response = await supabase.functions.invoke("gemini-chat", {
+      console.log("Sending messages to Gemini:", JSON.stringify(allMessages));
+      
+      const { data, error } = await supabase.functions.invoke("gemini-chat", {
         body: {
           messages: allMessages,
           agentConfig
         },
       });
 
-      if (response.error) throw new Error(response.error.message);
+      if (error) throw new Error(error.message);
+      
+      if (!data || !data.generatedText) {
+        throw new Error("No response received from Gemini");
+      }
 
       // Process response
       const assistantMessage: Message = { 
         role: "assistant", 
-        content: response.data.generatedText 
+        content: data.generatedText 
       };
       setMessages(prev => [...prev, assistantMessage]);
       
@@ -173,6 +179,7 @@ export function useChatWithGemini(agentId: string) {
       await saveMessage(assistantMessage, currentSessionId);
 
     } catch (error: any) {
+      console.error("Error sending message:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to get response",
