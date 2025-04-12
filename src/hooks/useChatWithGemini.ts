@@ -43,7 +43,7 @@ export function useChatWithGemini(agentId: string) {
         .from("chat_sessions")
         .insert({
           agent_id: agentId,
-          user_id: user.id, // Adding the user_id from the auth context
+          user_id: user.id,
           title
         })
         .select()
@@ -58,6 +58,50 @@ export function useChatWithGemini(agentId: string) {
         variant: "destructive"
       });
       return null;
+    }
+  }, [toast, user]);
+
+  const loadSession = useCallback(async (sessionId: string) => {
+    try {
+      setSessionId(sessionId);
+      setIsLoading(true);
+      
+      // Verify session belongs to current user
+      const { data: sessionData, error: sessionError } = await supabase
+        .from("chat_sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .single();
+        
+      if (sessionError) throw sessionError;
+      
+      if (sessionData.user_id !== user?.id) {
+        throw new Error("You don't have permission to access this chat session");
+      }
+      
+      // Load messages
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true });
+        
+      if (error) throw error;
+      
+      const loadedMessages = data.map((msg) => ({
+        role: msg.role as "user" | "assistant",
+        content: msg.content
+      }));
+      
+      setMessages(loadedMessages);
+    } catch (error: any) {
+      toast({
+        title: "Error loading chat session",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   }, [toast, user]);
 
@@ -148,6 +192,7 @@ export function useChatWithGemini(agentId: string) {
     messages,
     isLoading,
     sendMessage,
-    resetChat
+    resetChat,
+    loadSession
   };
 }

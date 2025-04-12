@@ -19,35 +19,40 @@ const Agents = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchAgents = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from("agents")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+  const fetchAgents = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("agents")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-        if (error) {
-          throw error;
-        }
-
-        setAgents(data || []);
-      } catch (error: any) {
-        toast({
-          title: "Error fetching agents",
-          description: error.message,
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+      if (error) {
+        throw error;
       }
-    };
 
+      setAgents(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error fetching agents",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAgents();
   }, [user, toast]);
+
+  const handleAgentDelete = () => {
+    fetchAgents();
+  };
 
   const filteredAgents = agents.filter(agent => 
     agent.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -62,11 +67,9 @@ const Agents = () => {
             <h1 className="text-3xl font-bold">My Agents</h1>
             <p className="text-muted-foreground">Manage and create your AI assistants</p>
           </div>
-          <Button asChild>
-            <div onClick={() => navigate("/editor/new")}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Agent
-            </div>
+          <Button onClick={() => navigate("/editor/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Agent
           </Button>
         </div>
         
@@ -95,11 +98,9 @@ const Agents = () => {
             <p className="mb-4 mt-2 text-sm text-muted-foreground max-w-sm">
               Create your first AI assistant to help with tasks, answer questions, or generate content.
             </p>
-            <Button asChild>
-              <div onClick={() => navigate("/editor/new")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Agent
-              </div>
+            <Button onClick={() => navigate("/editor/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Agent
             </Button>
           </div>
         ) : (
@@ -111,13 +112,14 @@ const Agents = () => {
                 name={agent.name}
                 description={agent.description || "No description provided"}
                 lastEdited={new Date(agent.updated_at).toLocaleDateString()}
-                conversationCount={0} // We'll update this later
+                conversationCount={0} // TODO: Implement count of chat sessions
                 isPublic={agent.is_public}
+                onDelete={handleAgentDelete}
               />
             ))}
             <Card className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center h-full">
-              <Button asChild variant="outline" className="h-auto p-4">
-                <div onClick={() => navigate("/editor/new")} className="flex flex-col items-center gap-2">
+              <Button variant="outline" className="h-auto p-4" onClick={() => navigate("/editor/new")}>
+                <div className="flex flex-col items-center gap-2">
                   <Plus className="h-8 w-8 text-primary" />
                   <span className="mt-1 font-medium">Create New Agent</span>
                 </div>
