@@ -1,7 +1,8 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Brain, CheckCircle, ChevronRight, Database, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge as UIBadge } from "@/components/ui/badge";
 
 const Index = () => {
   return (
@@ -13,11 +14,11 @@ const Index = () => {
             <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 xl:gap-16">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
-                  <Badge
+                  <UIBadge
                     className="inline-flex items-center rounded-full border border-purple-200 bg-purple-100 px-2.5 py-0.5 text-xs font-semibold text-purple-900 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-950 focus:ring-offset-2"
                   >
                     Early Access
-                  </Badge>
+                  </UIBadge>
                   <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl">
                     Build AI Agents with Blocks
                   </h1>
@@ -233,8 +234,5 @@ const Index = () => {
   );
 };
 
-function Badge({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("", className)} {...props} />;
-}
-
+// Removing the custom Badge component since we're now using the UI Badge
 export default Index;
