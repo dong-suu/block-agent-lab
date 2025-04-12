@@ -46,7 +46,7 @@ export function AgentBuilder({ initialData, isNew = false }: AgentBuilderProps) 
         instructions,
         visibility,
         user_id: user.id,
-        updated_at: new Date(),
+        updated_at: new Date().toISOString(), // Convert Date to ISO string
       };
       
       let result;
@@ -55,14 +55,21 @@ export function AgentBuilder({ initialData, isNew = false }: AgentBuilderProps) 
         // Create new agent
         result = await supabase
           .from("agents")
-          .insert([{ ...agentData, created_at: new Date() }])
+          .insert({
+            ...agentData,
+            created_at: new Date().toISOString(), // Convert Date to ISO string
+            is_public: visibility === "public"
+          })
           .select()
           .single();
       } else {
         // Update existing agent
         result = await supabase
           .from("agents")
-          .update(agentData)
+          .update({
+            ...agentData,
+            is_public: visibility === "public"
+          })
           .eq("id", initialData.id)
           .select()
           .single();
