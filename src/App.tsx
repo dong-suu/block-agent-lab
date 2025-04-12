@@ -13,6 +13,7 @@ import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
 import Agents from "./pages/Agents";
 import Templates from "./pages/Templates";
+import TemplateDetail from "./pages/TemplateDetail";
 import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
 import { AuthGuard } from "./components/ui/AuthGuard";
@@ -35,6 +36,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/agents" element={<AuthGuard><Agents /></AuthGuard>} />
                 <Route path="/templates" element={<AuthGuard><Templates /></AuthGuard>} />
+                <Route path="/templates/use/:id" element={<AuthGuard><TemplateDetail /></AuthGuard>} />
                 <Route path="/community" element={<AuthGuard><Community /></AuthGuard>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
