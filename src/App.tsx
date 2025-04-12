@@ -15,35 +15,36 @@ import Agents from "./pages/Agents";
 import Templates from "./pages/Templates";
 import Community from "./pages/Community";
 import NotFound from "./pages/NotFound";
+import { AuthGuard } from "./components/ui/AuthGuard";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <TooltipProvider>
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <div className="flex-1">
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/editor/:id" element={<Editor />} />
-                <Route path="/chat/:id" element={<Chat />} />
+                <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+                <Route path="/editor/:id" element={<AuthGuard><Editor /></AuthGuard>} />
+                <Route path="/chat/:id" element={<AuthGuard><Chat /></AuthGuard>} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/agents" element={<Agents />} />
-                <Route path="/templates" element={<Templates />} />
-                <Route path="/community" element={<Community />} />
+                <Route path="/agents" element={<AuthGuard><Agents /></AuthGuard>} />
+                <Route path="/templates" element={<AuthGuard><Templates /></AuthGuard>} />
+                <Route path="/community" element={<AuthGuard><Community /></AuthGuard>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
           </div>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
+          <Toaster />
+          <Sonner />
+        </TooltipProvider>
+      </BrowserRouter>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

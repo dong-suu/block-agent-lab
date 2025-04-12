@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Message = {
   role: "user" | "assistant";
@@ -13,6 +14,7 @@ export function useChatWithGemini(agentId: string) {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const saveMessage = useCallback(async (message: Message, chatSessionId: string) => {
     try {
@@ -28,10 +30,20 @@ export function useChatWithGemini(agentId: string) {
 
   const createChatSession = useCallback(async (agentId: string, title = "New Chat") => {
     try {
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "You must be logged in to create a chat session",
+          variant: "destructive"
+        });
+        return null;
+      }
+
       const { data, error } = await supabase
         .from("chat_sessions")
         .insert({
           agent_id: agentId,
+          user_id: user.id, // Adding the user_id from the auth context
           title
         })
         .select()
@@ -47,7 +59,7 @@ export function useChatWithGemini(agentId: string) {
       });
       return null;
     }
-  }, [toast]);
+  }, [toast, user]);
 
   const getAgentConfig = useCallback(async (agentId: string) => {
     try {
@@ -67,6 +79,14 @@ export function useChatWithGemini(agentId: string) {
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to send messages",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const userMessage: Message = { role: "user", content };
     setMessages(prev => [...prev, userMessage]);
@@ -117,7 +137,7 @@ export function useChatWithGemini(agentId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [agentId, messages, sessionId, createChatSession, saveMessage, getAgentConfig, toast]);
+  }, [agentId, messages, sessionId, createChatSession, saveMessage, getAgentConfig, toast, user]);
 
   const resetChat = useCallback(() => {
     setMessages([]);
