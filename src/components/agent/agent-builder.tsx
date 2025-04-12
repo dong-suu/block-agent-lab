@@ -9,8 +9,90 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Save, Play, ExternalLink, Info } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
-export function AgentBuilder() {
+interface AgentBuilderProps {
+  initialData?: any;
+  isNew?: boolean;
+}
+
+export function AgentBuilder({ initialData, isNew = false }: AgentBuilderProps) {
+  const [name, setName] = useState(initialData?.name || "My Custom Assistant");
+  const [description, setDescription] = useState(initialData?.description || "");
+  const [instructions, setInstructions] = useState(initialData?.instructions || "");
+  const [visibility, setVisibility] = useState(initialData?.visibility || "private");
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
+  const handleSave = async () => {
+    try {
+      if (!user) {
+        toast({
+          title: "Authentication error",
+          description: "You must be logged in to save an agent",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const agentData = {
+        name,
+        description,
+        instructions,
+        visibility,
+        user_id: user.id,
+        updated_at: new Date(),
+      };
+      
+      let result;
+      
+      if (isNew) {
+        // Create new agent
+        result = await supabase
+          .from("agents")
+          .insert([{ ...agentData, created_at: new Date() }])
+          .select()
+          .single();
+      } else {
+        // Update existing agent
+        result = await supabase
+          .from("agents")
+          .update(agentData)
+          .eq("id", initialData.id)
+          .select()
+          .single();
+      }
+      
+      if (result.error) throw result.error;
+      
+      toast({
+        title: isNew ? "Agent created" : "Agent updated",
+        description: `${name} has been ${isNew ? "created" : "updated"} successfully`,
+      });
+      
+      // Redirect to agents page after successful save
+      navigate("/agents");
+    } catch (error: any) {
+      toast({
+        title: "Error saving agent",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleTest = () => {
+    toast({
+      title: "Test Mode",
+      description: "Test functionality is coming soon",
+    });
+  };
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
       <div className="flex items-center justify-between p-4 border-b">
@@ -19,13 +101,13 @@ export function AgentBuilder() {
           <p className="text-sm text-muted-foreground">Create and customize your AI assistant</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleTest}>
             <Play className="h-4 w-4 mr-2" />
             Test
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={handleSave}>
             <Save className="h-4 w-4 mr-2" />
-            Save Agent
+            {isNew ? "Create Agent" : "Save Changes"}
           </Button>
         </div>
       </div>
@@ -41,7 +123,8 @@ export function AgentBuilder() {
               <Input 
                 placeholder="Agent Name" 
                 className="text-lg font-medium" 
-                defaultValue="My Custom Assistant" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
               />
             </div>
             <AgentCanvas className="flex-1" />
@@ -64,6 +147,8 @@ export function AgentBuilder() {
                         id="description"
                         placeholder="Describe what your agent does..."
                         className="resize-none"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -72,6 +157,8 @@ export function AgentBuilder() {
                         id="instructions"
                         placeholder="Add special instructions for your agent..."
                         className="resize-none"
+                        value={instructions}
+                        onChange={(e) => setInstructions(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -79,6 +166,8 @@ export function AgentBuilder() {
                       <select
                         id="visibility"
                         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={visibility}
+                        onChange={(e) => setVisibility(e.target.value)}
                       >
                         <option value="private">Private</option>
                         <option value="public">Public</option>
