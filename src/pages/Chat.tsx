@@ -1,100 +1,172 @@
 
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Brain, Send } from "lucide-react";
-import { useState } from "react";
+import { Brain, RefreshCw, Send, Loader2 } from "lucide-react";
+import { useChatWithGemini } from "@/hooks/useChatWithGemini";
+import { supabase } from "@/integrations/supabase/client";
+import { AuthGuard } from "@/components/ui/AuthGuard";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Chat = () => {
+  const { id } = useParams<{ id: string }>();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hello! I'm your custom AI assistant. How can I help you today?",
-    },
-  ]);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [agent, setAgent] = useState<any>(null);
+  const { messages, isLoading, sendMessage, resetChat } = useChatWithGemini(id || "");
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Fetch agent details
+  useEffect(() => {
+    const fetchAgent = async () => {
+      if (!id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("agents")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+        setAgent(data);
+      } catch (error: any) {
+        toast({
+          title: "Error fetching agent",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchAgent();
+  }, [id, toast]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
+  }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-
-    const userMessage = {
-      role: "user",
-      content: input,
-    };
-
-    setMessages([...messages, userMessage]);
+    if (!input.trim() || isLoading) return;
+    
+    sendMessage(input);
     setInput("");
-
-    // Simulate AI response
-    setTimeout(() => {
-      const assistantMessage = {
-        role: "assistant",
-        content: "I'm a simulated response from your custom AI assistant. In a real implementation, this would be generated based on your agent's configuration.",
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    }, 1000);
   };
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto">
-      <div className="border-b p-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-            <Brain className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold">Research Assistant</h1>
-            <p className="text-xs text-muted-foreground">Helps with academic research, paper summaries, and literature reviews.</p>
-          </div>
-        </div>
-      </div>
+  const handleResetChat = () => {
+    resetChat();
+  };
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((message, i) => (
-            <div
-              key={i}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div className="flex gap-3 max-w-[80%]">
-                {message.role === "assistant" && (
+  // Default welcome message if no messages yet
+  const welcomeMessage = {
+    role: "assistant" as const,
+    content: agent 
+      ? `Hello! I'm ${agent.name}. ${agent.description || "How can I help you today?"}`
+      : "Hello! I'm your AI assistant. How can I help you today?",
+  };
+
+  const displayMessages = messages.length > 0 ? messages : [welcomeMessage];
+
+  return (
+    <AuthGuard>
+      <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto">
+        {agent && (
+          <div className="border-b p-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Brain className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold">{agent.name}</h1>
+                <p className="text-xs text-muted-foreground">{agent.description || "AI Assistant"}</p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="ml-auto" 
+                onClick={handleResetChat}
+                title="New conversation"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+          <div className="space-y-4">
+            {displayMessages.map((message, i) => (
+              <div
+                key={i}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div className="flex gap-3 max-w-[80%]">
+                  {message.role === "assistant" && (
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="" />
+                      <AvatarFallback className="bg-primary/10 text-primary">AI</AvatarFallback>
+                    </Avatar>
+                  )}
+                  <Card className={`p-3 ${message.role === "user" ? "bg-primary text-primary-foreground" : ""}`}>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  </Card>
+                  {message.role === "user" && (
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src="" />
+                      <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="flex gap-3 max-w-[80%]">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="" />
                     <AvatarFallback className="bg-primary/10 text-primary">AI</AvatarFallback>
                   </Avatar>
-                )}
-                <Card className={`p-3 ${message.role === "user" ? "bg-primary text-primary-foreground" : ""}`}>
-                  <p className="text-sm">{message.content}</p>
-                </Card>
-                {message.role === "user" && (
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                )}
+                  <Card className="p-3">
+                    <div className="flex items-center">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <p className="text-sm">Thinking...</p>
+                    </div>
+                  </Card>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
+            )}
+          </div>
+        </ScrollArea>
 
-      <div className="p-4 border-t">
-        <form onSubmit={handleSendMessage} className="flex gap-2">
-          <Input
-            placeholder="Type a message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1"
-          />
-          <Button type="submit" size="icon">
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
+        <div className="p-4 border-t">
+          <form onSubmit={handleSendMessage} className="flex gap-2">
+            <Input
+              placeholder="Type a message..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="flex-1"
+              disabled={isLoading}
+            />
+            <Button type="submit" size="icon" disabled={isLoading}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 };
 

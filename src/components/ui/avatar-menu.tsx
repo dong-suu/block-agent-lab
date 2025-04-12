@@ -15,14 +15,21 @@ import { LogOut, Settings, User } from "lucide-react";
 interface AvatarMenuProps {
   username: string;
   avatarUrl?: string;
+  onSignOut?: () => void;
 }
 
-export function AvatarMenu({ username, avatarUrl }: AvatarMenuProps) {
+export function AvatarMenu({ username, avatarUrl, onSignOut }: AvatarMenuProps) {
   const initials = username
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase();
+
+  const handleSignOut = () => {
+    if (onSignOut) {
+      onSignOut();
+    }
+  };
 
   return (
     <DropdownMenu>
@@ -55,7 +62,7 @@ export function AvatarMenu({ username, avatarUrl }: AvatarMenuProps) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
